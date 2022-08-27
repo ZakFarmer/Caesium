@@ -34,31 +34,7 @@ impl Particle {
     }
 
     pub fn update(&mut self, dt: f64) {
-        self.velocity = add(self.velocity, mul_scalar(self.acceleration, dt));
-        self.position = add(self.position, mul_scalar(self.velocity, dt * TIMESCALE));
-
-        if self.position[1] < 0.0 {
-            self.acceleration[1] = 0.0;
-            self.position[1] = 0.0;
-            self.velocity[1] = -self.velocity[1] * DAMPING_FACTOR;
-        }
-
-        if self.position[0] < 0.0 {
-            self.acceleration[0] = 0.0;
-            self.position[0] = 0.0;
-            self.velocity[0] = -self.velocity[0] * DAMPING_FACTOR;
-        }
-
-        if self.position[0] > 800.0 {
-            self.acceleration[0] = 0.0;
-            self.position[0] = 800.0;
-            self.velocity[0] = -self.velocity[0] * DAMPING_FACTOR;
-        }
-
-        if self.position[1] > 800.0 {
-            self.acceleration[1] = 0.0;
-            self.position[1] = 800.0;
-            self.velocity[1] = -self.velocity[1] * DAMPING_FACTOR;
-        }
+        self.velocity = add(self.velocity, self.acceleration);
+        self.position = add(self.position, self.velocity);
     }
 }

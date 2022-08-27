@@ -16,7 +16,7 @@ use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 use rand::Rng;
 
-use crate::constants::PHYSICS_SCALE;
+use crate::constants::{DAMPING_FACTOR, GRAVITATIONAL_CONSTANT, PHYSICS_SCALE};
 
 pub struct App {
     gl: GlGraphics,
@@ -31,11 +31,11 @@ impl App {
 
         for _ in 0..particle_num {
             self.particles.push(Particle::new(
-                [0.0, 0.0],
+                [1.0, -100.0],
                 [rng.gen_range(10.0..800.0), rng.gen_range(10.0..800.0)], //[rng.gen_range(0.0..800.0), rng.gen_range(0.0..800.0)],
-                [rng.gen_range(-5.0..5.0), rng.gen_range(-5.0..5.0)],
-                rng.gen_range(1.0..10.0) * ELECTRON_MASS,
-                ELECTRON_CHARGE * rng.gen_range(1..5) as f64,
+                [0.0, 0.0],
+                rng.gen_range(1.0..2.0) * 10e4,
+                ELECTRON_CHARGE * rng.gen_range(1..2) as f64,
                 [1.0, 1.0, 1.0, rng.gen_range(0.0..1.0) as f32],
             ));
         }
@@ -62,82 +62,70 @@ impl App {
 
     fn update(&mut self, args: &UpdateArgs) {
         for a in 0..self.particles.len() {
-            self.particles[a].update(args.dt);
+            let mut total_force: [f64; 2] = [0.0, 0.0];
 
             for b in 0..self.particles.len() {
                 if a != b {
                     // Create distance vector for particle A
-                    let distance_a = [
+                    let distance = [
                         self.particles[a].position[0] - self.particles[b].position[0],
                         self.particles[a].position[1] - self.particles[b].position[1],
                     ];
 
-                    // Create distance vector for particle B
-                    let distance_b: [f64; 2] = [
-                        self.particles[b].position[0] - self.particles[a].position[0],
-                        self.particles[b].position[1] - self.particles[a].position[1],
+                    // Newton's law of universal gravitation - F = G(m1 * m2) / r^2
+                    let force: [f64; 2] = [
+                        GRAVITATIONAL_CONSTANT * self.particles[a].mass * self.particles[b].mass
+                            / (distance[0] * distance[0]),
+                        GRAVITATIONAL_CONSTANT * self.particles[a].mass * self.particles[b].mass
+                            / (distance[1] * distance[1]),
                     ];
 
-                    // Coulomb's law - F = k * q1 * q2 / r^2
-                    let force_a: [f64; 2] = [
-                        COULOMB_CONSTANT * self.particles[a].charge * self.particles[b].charge
-                            / (distance_a[0] * distance_a[0]),
-                        COULOMB_CONSTANT * self.particles[a].charge * self.particles[b].charge
-                            / (distance_a[1] * distance_a[1]),
-                    ];
+                    total_force = add(total_force, force);
 
-                    let force_b: [f64; 2] = [
-                        COULOMB_CONSTANT * self.particles[b].charge * self.particles[a].charge
-                            / (distance_b[0] * distance_b[0]),
-                        COULOMB_CONSTANT * self.particles[b].charge * self.particles[a].charge
-                            / (distance_b[1] * distance_b[1]),
-                    ];
-
-                    let acceleration_a: [f64; 2] = [
-                        force_a[0] / self.particles[a].mass,
-                        force_a[1] / self.particles[a].mass,
-                    ];
-
-                    let acceleration_b: [f64; 2] = [
-                        force_b[0] / self.particles[b].mass,
-                        force_b[1] / self.particles[b].mass,
-                    ];
-
-                    self.particles[a].acceleration = mul_scalar(
-                        add(self.particles[a].acceleration, acceleration_a),
-                        PHYSICS_SCALE,
-                    );
-
-                    self.particles[b].acceleration = mul_scalar(
-                        add(self.particles[b].acceleration, acceleration_b),
-                        PHYSICS_SCALE,
-                    );
-
-                    if self.particles[a].acceleration[0].is_nan()
-                        || self.particles[a].acceleration[0].is_infinite()
-                    {
-                        self.particles[a].acceleration[0] = 0.0;
+                    if total_force[0].is_nan() {
+                        total_force[0] = 0.0;
                     }
 
-                    if self.particles[a].acceleration[1].is_nan()
-                        || self.particles[a].acceleration[1].is_infinite()
-                    {
-                        self.particles[a].acceleration[1] = 0.0;
-                    }
-
-                    if self.particles[b].acceleration[0].is_nan()
-                        || self.particles[b].acceleration[0].is_infinite()
-                    {
-                        self.particles[b].acceleration[0] = 0.0;
-                    }
-
-                    if self.particles[b].acceleration[1].is_nan()
-                        || self.particles[b].acceleration[1].is_infinite()
-                    {
-                        self.particles[b].acceleration[1] = 0.0;
+                    if total_force[1].is_nan() {
+                        total_force[1] = 0.0;
                     }
                 }
             }
+
+            println!("Total force: {:?}", total_force);
+
+            self.particles[a].acceleration = mul_scalar(
+                total_force,
+                PHYSICS_SCALE * args.dt * (1.0 / self.particles[a].mass),
+            );
+
+            println!("Acceleration: {:?}", self.particles[a].acceleration);
+
+            if self.particles[a].position[0] < 0.0 {
+                self.particles[a].acceleration[0] = 0.0;
+                self.particles[a].position[0] = 0.0;
+                self.particles[a].velocity[0] = -self.particles[a].velocity[0] * DAMPING_FACTOR;
+            }
+
+            if self.particles[a].position[1] < 0.0 {
+                self.particles[a].acceleration[1] = 0.0;
+                self.particles[a].position[1] = 0.0;
+                self.particles[a].velocity[1] = -self.particles[a].velocity[1] * DAMPING_FACTOR;
+            }
+
+            if self.particles[a].position[0] > 700.0 {
+                self.particles[a].acceleration[0] = 0.0;
+                self.particles[a].position[0] = 700.0;
+                self.particles[a].velocity[0] = -self.particles[a].velocity[0] * DAMPING_FACTOR;
+            }
+
+            if self.particles[a].position[1] > 700.0 {
+                self.particles[a].acceleration[1] = 0.0;
+                self.particles[a].position[1] = 700.0;
+                self.particles[a].velocity[1] = -self.particles[a].velocity[1] * DAMPING_FACTOR;
+            }
+
+            self.particles[a].update(args.dt);
         }
     }
 }
@@ -156,7 +144,7 @@ fn main() {
         particles: Vec::new(),
     };
 
-    app.init(1000);
+    app.init(200);
 
     let mut events = Events::new(EventSettings::new());
 
