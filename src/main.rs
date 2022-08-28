@@ -1,4 +1,5 @@
 pub mod constants;
+pub mod debug;
 pub mod particle;
 pub mod physics;
 
@@ -7,12 +8,11 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use std::thread::sleep;
-use std::time::Duration;
-
-use constants::{COULOMB_CONSTANT, ELECTRON_CHARGE, ELECTRON_MASS};
+use constants::PARTICLE_COUNT;
+use debug::{DebugLine, DebugManager};
 use glutin_window::GlutinWindow as Window;
-use graphics::math::{add, mul_scalar};
+use graphics::line_from_to;
+use graphics::math::{add, identity, mul_scalar};
 use opengl_graphics::{GlGraphics, OpenGL};
 use particle::Particle;
 use piston::event_loop::{EventSettings, Events};
@@ -21,13 +21,17 @@ use piston::window::WindowSettings;
 use rand::Rng;
 
 use crate::constants::{
-    DAMPING_FACTOR, GRAVITATIONAL_CONSTANT, PHYSICS_SCALE, SOLAR_MASS, SOLAR_RADIUS, TIMESCALE,
+    DAMPING_FACTOR, GRAVITATIONAL_CONSTANT, PHYSICS_SCALE, SOLAR_MASS, SOLAR_RADIUS,
 };
+
 use crate::physics::scale_to_screen;
+
+const DEBUG: bool = true;
 
 pub struct App {
     gl: GlGraphics,
     particles: Vec<Particle>,
+    debug_manager: DebugManager,
 }
 
 impl App {
@@ -51,18 +55,32 @@ impl App {
             let particle = Particle::new(
                 [0.0, 0.0],
                 [
-                    rng.gen_range(10.0..800.0) / PHYSICS_SCALE,
-                    rng.gen_range(10.0..800.0) / PHYSICS_SCALE,
+                    rng.gen_range(100.0..400.0) / PHYSICS_SCALE,
+                    rng.gen_range(100.0..400.0) / PHYSICS_SCALE,
                 ], //[rng.gen_range(0.0..800.0), rng.gen_range(0.0..800.0)],
                 particle_size * SOLAR_RADIUS,
                 [0.0, 0.0],
                 particle_size * SOLAR_MASS,
-                ELECTRON_CHARGE * rng.gen_range(1.0..2.0) as f64,
-                colours[2], //rng.gen_range(0..4)],
+                [1.0, 1.0, 1.0, 1.0],
             );
+
+            println!("Created particle {:?}", particle);
 
             self.particles.push(particle);
         }
+
+        /*let sun: Particle = Particle::new(
+            [0.0, 0.0],
+            [400.0 / PHYSICS_SCALE, 400.0 / PHYSICS_SCALE],
+            SOLAR_RADIUS * 200.0,
+            [0.0, 0.0],
+            SOLAR_MASS * 2.0,
+            [1.0, 0.839, 0.0039, 1.0],
+        );
+
+        println!("Sun: {:?}", sun);
+
+        self.particles.push(sun);*/
     }
 
     fn render(&mut self, args: &RenderArgs) {
@@ -76,10 +94,17 @@ impl App {
                 let body = ellipse::circle(
                     0.0,
                     0.0,
-                    f64::floor(self.particles[i].radius * PHYSICS_SCALE * 10.0 * 0.5),
+                    f64::floor(self.particles[i].radius * PHYSICS_SCALE),
                 );
+
                 let scaled_pos: [f64; 2] = scale_to_screen(self.particles[i].position);
                 let transform = c.transform.trans(scaled_pos[0], scaled_pos[1]);
+
+                if DEBUG {
+                    for debug_line in self.debug_manager.get_lines() {
+                        line([1.0, 1.0, 1.0, 0.1], 1.0, debug_line.line, transform, gl);
+                    }
+                }
 
                 ellipse(self.particles[i].colour, body, transform, gl);
             }
@@ -87,6 +112,8 @@ impl App {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
+        self.debug_manager.clear_lines();
+
         let mut angle: f64 = 0.0;
         let mut total_force: f64 = 0.0;
 
@@ -107,7 +134,7 @@ impl App {
                     let magnitude: f64 =
                         (distance[0] * distance[0] + distance[1] * distance[1]).sqrt();
 
-                    if magnitude <= (self.particles[a].radius + self.particles[b].radius) * 2.0 {
+                    if magnitude <= 2000.0 + self.particles[a].radius + self.particles[b].radius {
                         self.particles[a].velocity = [
                             self.particles[a].velocity[0] * -DAMPING_FACTOR,
                             self.particles[a].velocity[1] * -DAMPING_FACTOR,
@@ -123,6 +150,18 @@ impl App {
                         self.particles[b].acceleration = [0.0, 0.0];
 
                         continue;
+                    }
+
+                    if DEBUG {
+                        self.debug_manager.add_line(DebugLine {
+                            line: [
+                                f64::floor(self.particles[a].position[0]),
+                                f64::floor(self.particles[a].position[1]),
+                                f64::floor(self.particles[b].position[0]),
+                                f64::floor(self.particles[b].position[1]),
+                            ],
+                            angle,
+                        });
                     }
 
                     angle = f64::asin(distance[1] / magnitude);
@@ -156,11 +195,12 @@ fn main() {
         .unwrap();
 
     let mut app = App {
+        debug_manager: DebugManager::new(DEBUG),
         gl: GlGraphics::new(opengl),
         particles: Vec::new(),
     };
 
-    app.init(200);
+    app.init(PARTICLE_COUNT);
 
     let mut events = Events::new(EventSettings::new());
 
