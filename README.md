@@ -1,4 +1,4 @@
-# Caesium
+![Caesium Logo](https://i.imgur.com/GI36qpF.png)
 Caesium is an attempt at making a physics simulation game that is as accurate as possible.
 At the moment it's more of a challenge project for myself to improve my knowledge of Rust and physics simulations.
 
