@@ -1,6 +1,4 @@
 # Caesium
-## Rust physics simulation game
-
 Caesium is an attempt at making a physics simulation game that is as accurate as possible.
 At the moment it's more of a challenge project for myself to improve my knowledge of Rust and physics simulations.
 
@@ -8,7 +6,7 @@ At the moment it's more of a challenge project for myself to improve my knowledg
 
 - N-body simulation (Classical Newtonian gravity)
 - Chaos simulation
-- Electrostatic interation simulation
+- Electrostatic interaction simulation
 - Radiation 
 
 The idea of the project isn't very concrete at the moment, and this README will change many times I'm sure.
@@ -46,3 +44,5 @@ To run the test suite, use the below Cargo command.
 ```sh
 cargo test
 ```
+## Contributing
+If you'd like to contribute to the project and help make something cool out of Caesium, I'd love your support! My Rust knowledge isn't very advanced and I struggle to get my head around the physics sometimes, so I am sure there are many places where something could've been implemented in a better way. Raising issues would also be really helpful for me when doing bugfixes.
