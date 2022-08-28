@@ -8,6 +8,7 @@ At the moment it's more of a challenge project for myself to improve my knowledg
 - Chaos simulation
 - Electrostatic interaction simulation
 - Radiation 
+- GUI for detailed information on bodies and debug tools
 
 The idea of the project isn't very concrete at the moment, and this README will change many times I'm sure.
 My main focus is to make sure the simulations are accurate through extensive automated testing, and then expanding upon these models to create a featureful game-like experience.
