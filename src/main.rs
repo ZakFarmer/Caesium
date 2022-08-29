@@ -68,19 +68,6 @@ impl App {
 
             self.particles.push(particle);
         }
-
-        /*let sun: Particle = Particle::new(
-            [0.0, 0.0],
-            [400.0 / PHYSICS_SCALE, 400.0 / PHYSICS_SCALE],
-            SOLAR_RADIUS * 200.0,
-            [0.0, 0.0],
-            SOLAR_MASS * 2.0,
-            [1.0, 0.839, 0.0039, 1.0],
-        );
-
-        println!("Sun: {:?}", sun);
-
-        self.particles.push(sun);*/
     }
 
     fn render(&mut self, args: &RenderArgs) {
