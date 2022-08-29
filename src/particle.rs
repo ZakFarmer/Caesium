@@ -41,12 +41,12 @@ impl Particle {
 
         if self.position[0] < 0.0 {
             self.acceleration[0] = 0.0;
-            self.position[0] = SCREEN_WIDTH - self.radius;
+            self.position[0] = SCREEN_WIDTH / PHYSICS_SCALE - self.radius;
         }
 
         if self.position[1] < 0.0 {
-            self.acceleration[1] = 800.0;
-            self.position[1] = SCREEN_HEIGHT - self.radius;
+            self.acceleration[1] = 0.0;
+            self.position[1] = SCREEN_HEIGHT / PHYSICS_SCALE - self.radius;
         }
 
         if self.position[0] > SCREEN_WIDTH / PHYSICS_SCALE {

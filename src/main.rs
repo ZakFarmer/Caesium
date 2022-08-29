@@ -48,15 +48,15 @@ impl App {
         self.particles = Vec::new();
 
         for _ in 0..particle_num {
-            let particle_size: f64 = rng.gen_range(1.0..10.0);
+            let particle_size: f64 = rng.gen_range(3.0..10.0);
 
             println!("Creating particle with size {}", particle_size);
 
             let particle = Particle::new(
                 [0.0, 0.0],
                 [
-                    rng.gen_range(100.0..400.0) / PHYSICS_SCALE,
-                    rng.gen_range(100.0..400.0) / PHYSICS_SCALE,
+                    rng.gen_range(100.0..700.0) / PHYSICS_SCALE,
+                    rng.gen_range(100.0..700.0) / PHYSICS_SCALE,
                 ], //[rng.gen_range(0.0..800.0), rng.gen_range(0.0..800.0)],
                 particle_size * SOLAR_RADIUS,
                 [0.0, 0.0],
@@ -115,26 +115,26 @@ impl App {
         self.debug_manager.clear_lines();
 
         let mut angle: f64 = 0.0;
-        let mut total_force: f64 = 0.0;
+        let mut total_force: [f64; 2] = [0.0, 0.0];
 
         for a in 0..self.particles.len() {
             angle = 0.0;
-            total_force = 0.0;
+            total_force = [0.0, 0.0];
 
             for b in 0..self.particles.len() {
                 if a != b {
                     // Create distance vector for particle A
                     let distance: [f64; 2] = [
-                        (self.particles[b].position[0] + self.particles[b].radius)
-                            - (self.particles[a].position[0] + self.particles[a].radius),
-                        (self.particles[b].position[1] + self.particles[b].radius)
-                            - (self.particles[a].position[1] + self.particles[a].radius),
+                        (self.particles[b].position[0]) - (self.particles[a].position[0]),
+                        (self.particles[b].position[1]) - (self.particles[a].position[1]),
                     ];
 
                     let magnitude: f64 =
                         (distance[0] * distance[0] + distance[1] * distance[1]).sqrt();
 
-                    if magnitude <= 2000.0 + self.particles[a].radius + self.particles[b].radius {
+                    angle = f64::asin(distance[1] / magnitude);
+
+                    if magnitude <= self.particles[a].radius + self.particles[b].radius {
                         self.particles[a].velocity = [
                             self.particles[a].velocity[0] * -DAMPING_FACTOR,
                             self.particles[a].velocity[1] * -DAMPING_FACTOR,
@@ -145,9 +145,15 @@ impl App {
                             self.particles[b].velocity[1] * -DAMPING_FACTOR,
                         ];
 
-                        self.particles[a].acceleration = [0.0, 0.0];
+                        self.particles[a].acceleration = [
+                            self.particles[a].acceleration[0] * -DAMPING_FACTOR,
+                            self.particles[a].acceleration[1] * -DAMPING_FACTOR,
+                        ];
 
-                        self.particles[b].acceleration = [0.0, 0.0];
+                        self.particles[b].acceleration = [
+                            self.particles[b].acceleration[0] * -DAMPING_FACTOR,
+                            self.particles[b].acceleration[1] * -DAMPING_FACTOR,
+                        ];
 
                         continue;
                     }
@@ -164,21 +170,25 @@ impl App {
                         });
                     }
 
-                    angle = f64::asin(distance[1] / magnitude);
-
                     let force: f64 =
                         (GRAVITATIONAL_CONSTANT * self.particles[a].mass * self.particles[b].mass)
                             / (magnitude.powi(2));
 
-                    total_force = total_force + force;
+                    total_force[0] += ((GRAVITATIONAL_CONSTANT
+                        * self.particles[a].mass
+                        * self.particles[b].mass)
+                        / (magnitude.powi(3)))
+                        * distance[0];
+                    total_force[1] += ((GRAVITATIONAL_CONSTANT
+                        * self.particles[a].mass
+                        * self.particles[b].mass)
+                        / (magnitude.powi(3)))
+                        * distance[1];
                 }
             }
 
-            let force_x = total_force * f64::cos(angle);
-            let force_y: f64 = total_force * f64::sin(angle);
-
-            self.particles[a].acceleration[0] = (force_x / self.particles[a].mass) * args.dt;
-            self.particles[a].acceleration[1] = (force_y / self.particles[a].mass) * args.dt;
+            self.particles[a].acceleration[0] = (total_force[0] / self.particles[a].mass) * args.dt;
+            self.particles[a].acceleration[1] = (total_force[1] / self.particles[a].mass) * args.dt;
 
             self.particles[a].update(args.dt);
         }
