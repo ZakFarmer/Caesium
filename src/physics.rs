@@ -1,6 +1,6 @@
 use graphics::types::Vec2d;
 
-use crate::constants::PHYSICS_SCALE;
+use crate::constants::{GRAVITATIONAL_CONSTANT, PHYSICS_SCALE};
 
 /**
  * Scales a vector to the bounds of the screen
@@ -10,7 +10,7 @@ pub fn scale_to_screen(pos: Vec2d) -> Vec2d {
 }
 
 /**
- * Calculates the distance between two bodies with respective positions p1 and p2.
+ * Calculates the distance between two positions p1 and p2.
  *
  * d = sqrt((p1.x - p2.x)^2 + (p1.y - p2.y)^2)
  */
@@ -29,6 +29,14 @@ pub fn calculate_distance(p1: Vec2d, p2: Vec2d) -> f64 {
  */
 pub fn calculate_gravitational_force(m1: f64, m2: f64, d: f64) -> f64 {
     (GRAVITATIONAL_CONSTANT * (m1 * m2)) / (d * d)
+}
+
+/** Calculates kinetic energy (in J) of a body with mass m and velocity v.
+ *
+ * E = 1/2 * m * v^2
+ */
+pub fn calculate_kinetic_energy(m: f64, v: f64) -> f64 {
+    0.5 * m * v * v
 }
 
 #[cfg(test)]
@@ -51,5 +59,13 @@ mod tests {
             2.0022240000000002e-10,
             super::calculate_gravitational_force(m1, m2, d)
         );
+    }
+
+    #[test]
+    fn test_calculate_kinetic_energy() {
+        let m = 3.0;
+        let v = 10.0;
+
+        assert_eq!(150.0, super::calculate_kinetic_energy(m, v));
     }
 }
