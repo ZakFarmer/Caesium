@@ -14,6 +14,15 @@ pub fn scale_to_screen(pos: Vec2d) -> Vec2d {
 }
 
 /**
+ * Calculates the angular velocity of a body at radius r and linear velocity v
+ *
+ * OMEGA = (v * sin(theta)) / r
+ */
+pub fn calculate_angular_velocity(r: f64, theta: f64, v: f64) -> f64 {
+    (v * f64::sin(theta)) / r
+}
+
+/**
  * Calculates the distance between two positions p1 and p2.
  *
  * d = sqrt((p1.x - p2.x)^2 + (p1.y - p2.y)^2)

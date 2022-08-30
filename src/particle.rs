@@ -37,7 +37,7 @@ impl Particle {
 
     pub fn update(&mut self, dt: f64) {
         self.velocity = add(self.velocity, self.acceleration);
-        self.position = add(self.position, mul_scalar(self.velocity, TIMESCALE));
+        self.position = add(self.position, mul_scalar(self.velocity, dt * TIMESCALE));
 
         if self.position[0] < 0.0 {
             self.acceleration[0] = 0.0;

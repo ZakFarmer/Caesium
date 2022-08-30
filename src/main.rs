@@ -54,7 +54,7 @@ impl App {
         self.particles = Vec::new();
 
         for _ in 0..particle_num {
-            let particle_size: f64 = rng.gen_range(1.5..2.0);
+            let particle_size: f64 = rng.gen_range(2.5..4.0);
 
             let particle = Particle::new(
                 [0.0, 0.0],
@@ -67,8 +67,6 @@ impl App {
                 particle_size * SOLAR_MASS,
                 [1.0, 1.0, 1.0, 1.0],
             );
-
-            println!("Created particle {:?}", particle);
 
             self.particles.push(particle);
         }
@@ -123,10 +121,23 @@ impl App {
                     // Create a unit vector for distance
                     let distance_unit: [f64; 2] = normalise(distance);
 
-                    let magnitude: f64 =
+                    let velocity_a_unit: [f64; 2] = normalise(self.particles[a].velocity);
+                    let velocity_b_unit: [f64; 2] = normalise(self.particles[b].velocity);
+
+                    let distance_magnitude: f64 =
                         (distance[0] * distance[0] + distance[1] * distance[1]).sqrt();
 
-                    let theta1 = f64::atan2(distance_unit[1], distance_unit[0]);
+                    let velocity_magnitude: f64 = (self.particles[a].velocity[0]
+                        * self.particles[a].velocity[0]
+                        + self.particles[a].velocity[1] * self.particles[a].velocity[1])
+                        .sqrt();
+
+                    let theta1: f64 = f64::atan2(distance_unit[1], distance_unit[0]);
+
+                    let theta2: f64 = f64::atan2(velocity_a_unit[1], velocity_a_unit[0]);
+
+                    let angular_velocity: f64 =
+                        (velocity_magnitude * f64::sin(theta2)) / distance_magnitude;
 
                     if DEBUG {
                         self.debug_manager.add_line(DebugLine {
@@ -140,7 +151,7 @@ impl App {
                         });
                     }
 
-                    if (magnitude <= self.particles[a].radius + self.particles[b].radius) {
+                    if distance_magnitude <= self.particles[a].radius + self.particles[b].radius {
                         // Particles have collided
 
                         let contact_angle: f64 = f64::atan2(
@@ -162,6 +173,38 @@ impl App {
                             contact_angle,
                         );
 
+                        let impulse_a: [f64; 2] = [
+                            (DAMPING_FACTOR + 1.0)
+                                * (v_after[0][0] - self.particles[a].velocity[0])
+                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
+                                    .powi(-1),
+                            (DAMPING_FACTOR + 1.0)
+                                * (v_after[0][1] - self.particles[a].velocity[1])
+                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
+                                    .powi(-1),
+                        ];
+
+                        let impulse_b: [f64; 2] = [
+                            (DAMPING_FACTOR + 1.0)
+                                * (v_after[1][0] - self.particles[a].velocity[0])
+                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
+                                    .powi(-1),
+                            (DAMPING_FACTOR + 1.0)
+                                * (v_after[1][1] - self.particles[a].velocity[1])
+                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
+                                    .powi(-1),
+                        ];
+
+                        self.particles[a].velocity = [
+                            impulse_a[0] / self.particles[a].mass,
+                            impulse_a[1] / self.particles[a].mass,
+                        ];
+
+                        self.particles[b].velocity = [
+                            impulse_b[0] / self.particles[b].mass,
+                            impulse_b[1] / self.particles[b].mass,
+                        ];
+
                         self.particles[a].position = [
                             self.particles[a].position[0] + v_after[0][0],
                             self.particles[a].position[1] + v_after[0][1],
@@ -172,16 +215,6 @@ impl App {
                             self.particles[b].position[1] + v_after[1][1],
                         ];
 
-                        self.particles[a].velocity = [
-                            v_after[0][0] * DAMPING_FACTOR,
-                            v_after[0][1] * DAMPING_FACTOR,
-                        ];
-
-                        self.particles[b].velocity = [
-                            v_after[1][0] * DAMPING_FACTOR,
-                            v_after[1][1] * DAMPING_FACTOR,
-                        ];
-
                         self.particles[a].acceleration = [0.0, 0.0];
                         self.particles[b].acceleration = [0.0, 0.0];
 
@@ -190,7 +223,7 @@ impl App {
                         let force: f64 = calculate_gravitational_force(
                             self.particles[a].mass,
                             self.particles[b].mass,
-                            magnitude,
+                            distance_magnitude,
                         );
 
                         total_force[0] += force * f64::cos(theta1);
