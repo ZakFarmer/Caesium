@@ -50,7 +50,7 @@ impl ParticleQuadtree {
         let mut parent_bounding_box: BoundingBox = bounding_box;
         let mut quadrant: usize = parent_bounding_box.quadrant(x, y);
 
-        while let Some(_) = &mut parent.children[quadrant] {
+        while parent.children[quadrant].is_some() {
             parent.update_center_of_mass(x, y, mass);
 
             parent_bounding_box = parent_bounding_box.child(quadrant);

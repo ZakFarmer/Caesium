@@ -14,7 +14,7 @@ use rust_particles::physics::nbody::step_simulation;
 use rust_particles::physics::simulation::{Simulation3D, SimulationConfig3D};
 use rust_particles::physics::vector::{Vector, Vector3D};
 
-const ELECTRON_CHARGE: f32 = -1.602176634e-19;
+const ELECTRON_CHARGE: f32 = -1.602_176_6e-19;
 
 const PARTICLE_COUNT: usize = 500;
 const PARTICLE_WIDTH_FACTOR: f32 = 1.0;
@@ -28,7 +28,7 @@ impl App<'_> {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        let sim: &mut Simulation3D = &mut self.sim;
+        let sim: &mut Simulation3D = self.sim;
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen
