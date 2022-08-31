@@ -1,263 +1,105 @@
-pub mod constants;
-pub mod debug;
-pub mod particle;
-pub mod physics;
-
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use std::thread::{sleep, sleep_ms};
-
-use constants::PARTICLE_COUNT;
-use debug::{DebugLine, DebugManager};
 use glutin_window::GlutinWindow as Window;
-use graphics::line_from_to;
-use graphics::math::{add, identity, mul_scalar};
 use opengl_graphics::{GlGraphics, OpenGL};
-use particle::Particle;
-use physics::{
-    calculate_gravitational_force, calculate_gravitational_force_vector, calculate_momentum,
-    calculate_velocities_after_collision, normalise,
-};
 use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 use rand::Rng;
+use rust_particles::physics::generators::generate_particle;
+use rust_particles::physics::nbody::step_simulation;
+use rust_particles::physics::simulation::{Simulation3D, SimulationConfig3D};
+use rust_particles::physics::vector::{Vector, Vector3D};
 
-use crate::constants::{
-    DAMPING_FACTOR, GRAVITATIONAL_CONSTANT, PHYSICS_SCALE, SOLAR_MASS, SOLAR_RADIUS,
-};
+const ELECTRON_CHARGE: f32 = -1.602176634e-19;
 
-use crate::physics::scale_to_screen;
+const PARTICLE_COUNT: usize = 500;
+const PARTICLE_WIDTH_FACTOR: f32 = 1.0;
 
-const DEBUG: bool = true;
-
-pub struct App {
+pub struct App<'a> {
     gl: GlGraphics,
-    particles: Vec<Particle>,
-    debug_manager: DebugManager,
+    sim: &'a mut Simulation3D,
 }
 
-impl App {
-    fn init(&mut self, particle_num: i32) {
-        let mut colours: [[f32; 4]; 4] = [
-            [0.24, 0.19, 0.58, 1.0],
-            [0.07, 0.439, 0.484, 1.0],
-            [0.0, 0.58, 0.417, 1.0], // GREEN
-            [0.32, 0.34, 0.34, 0.2],
-        ];
-
-        let mut rng = rand::thread_rng();
-
-        self.particles = Vec::new();
-
-        for _ in 0..particle_num {
-            let particle_size: f64 = rng.gen_range(2.5..4.0);
-
-            let particle = Particle::new(
-                [0.0, 0.0],
-                [
-                    rng.gen_range(100.0..700.0) / PHYSICS_SCALE,
-                    rng.gen_range(100.0..700.0) / PHYSICS_SCALE,
-                ], //[rng.gen_range(0.0..800.0), rng.gen_range(0.0..800.0)],
-                particle_size * SOLAR_RADIUS,
-                [0.01, 0.01],
-                particle_size * SOLAR_MASS,
-                [1.0, 1.0, 1.0, 1.0],
-            );
-
-            self.particles.push(particle);
-        }
-    }
-
+impl App<'_> {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
+
+        let sim: &mut Simulation3D = &mut self.sim;
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen
             clear([0.0, 0.0, 0.0, 1.0], gl);
 
-            for i in 0..self.particles.len() {
-                let body = ellipse::circle(
+            for i in 0..sim.number {
+                let particle_square = rectangle::square(
                     0.0,
                     0.0,
-                    f64::floor(self.particles[i].radius * PHYSICS_SCALE),
+                    (sim.mass[i] / (PARTICLE_WIDTH_FACTOR * 1e4)).into(),
                 );
 
-                let scaled_pos: [f64; 2] = scale_to_screen(self.particles[i].position);
-                let transform = c.transform.trans(scaled_pos[0], scaled_pos[1]);
+                let transform = c
+                    .transform
+                    .trans(sim.position[i].x as f64, sim.position[i].y as f64);
 
-                if DEBUG {
-                    for debug_line in self.debug_manager.get_lines() {
-                        line([1.0, 1.0, 1.0, 0.1], 1.0, debug_line.line, transform, gl);
-                    }
-                }
-
-                ellipse(self.particles[i].colour, body, transform, gl);
+                ellipse([1.0, 1.0, 1.0, 1.0], particle_square, transform, gl);
             }
         });
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        self.debug_manager.clear_lines();
-
-        let mut total_angle: f64 = 0.0;
-        let mut total_force: [f64; 2] = [0.0, 0.0];
-
-        for a in 0..self.particles.len() {
-            total_angle = 0.0;
-            total_force = [0.0, 0.0];
-
-            for b in 0..self.particles.len() {
-                if a != b {
-                    // Create distance vector for particle A
-                    let distance: [f64; 2] = [
-                        (self.particles[b].position[0]) - (self.particles[a].position[0]),
-                        (self.particles[b].position[1]) - (self.particles[a].position[1]),
-                    ];
-
-                    // Create a unit vector for distance
-                    let distance_unit: [f64; 2] = normalise(distance);
-
-                    let velocity_a_unit: [f64; 2] = normalise(self.particles[a].velocity);
-                    let velocity_b_unit: [f64; 2] = normalise(self.particles[b].velocity);
-
-                    let distance_magnitude: f64 =
-                        (distance[0] * distance[0] + distance[1] * distance[1]).sqrt();
-
-                    let velocity_magnitude: f64 = (self.particles[a].velocity[0]
-                        * self.particles[a].velocity[0]
-                        + self.particles[a].velocity[1] * self.particles[a].velocity[1])
-                        .sqrt();
-
-                    let theta1: f64 = f64::atan2(distance_unit[1], distance_unit[0]);
-
-                    let theta2: f64 = f64::atan2(velocity_a_unit[1], velocity_a_unit[0]);
-
-                    let angular_velocity: f64 =
-                        (velocity_magnitude * f64::sin(theta2)) / distance_magnitude;
-
-                    if DEBUG {
-                        self.debug_manager.add_line(DebugLine {
-                            line: [
-                                f64::floor(self.particles[a].position[0]),
-                                f64::floor(self.particles[a].position[1]),
-                                f64::floor(self.particles[b].position[0]),
-                                f64::floor(self.particles[b].position[1]),
-                            ],
-                            angle: theta1,
-                        });
-                    }
-
-                    if distance_magnitude <= self.particles[a].radius + self.particles[b].radius {
-                        // Particles have collided
-
-                        let contact_angle: f64 = f64::atan2(
-                            self.particles[a].position[1] - self.particles[b].position[1],
-                            self.particles[a].position[0] - self.particles[b].position[0],
-                        );
-
-                        let velocity_unit: [f64; 2] = normalise(self.particles[b].velocity);
-
-                        let theta2: f64 = f64::atan2(velocity_unit[1], velocity_unit[0]);
-
-                        let v_after: [[f64; 2]; 2] = calculate_velocities_after_collision(
-                            self.particles[a].velocity,
-                            self.particles[b].velocity,
-                            self.particles[a].mass,
-                            self.particles[b].mass,
-                            theta1,
-                            theta2,
-                            contact_angle,
-                        );
-
-                        let impulse_a: [f64; 2] = [
-                            (DAMPING_FACTOR + 1.0)
-                                * (v_after[0][0] - self.particles[a].velocity[0])
-                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
-                                    .powi(-1),
-                            (DAMPING_FACTOR + 1.0)
-                                * (v_after[0][1] - self.particles[a].velocity[1])
-                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
-                                    .powi(-1),
-                        ];
-
-                        let impulse_b: [f64; 2] = [
-                            (DAMPING_FACTOR + 1.0)
-                                * (v_after[1][0] - self.particles[a].velocity[0])
-                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
-                                    .powi(-1),
-                            (DAMPING_FACTOR + 1.0)
-                                * (v_after[1][1] - self.particles[a].velocity[1])
-                                * (1.0 / self.particles[a].mass + 1.0 / self.particles[b].mass)
-                                    .powi(-1),
-                        ];
-
-                        self.particles[a].velocity = [
-                            impulse_a[0] / self.particles[a].mass,
-                            impulse_a[1] / self.particles[a].mass,
-                        ];
-
-                        self.particles[b].velocity = [
-                            impulse_b[0] / self.particles[b].mass,
-                            impulse_b[1] / self.particles[b].mass,
-                        ];
-
-                        self.particles[a].position = [
-                            self.particles[a].position[0] + v_after[0][0],
-                            self.particles[a].position[1] + v_after[0][1],
-                        ];
-
-                        self.particles[b].position = [
-                            self.particles[b].position[0] + v_after[1][0],
-                            self.particles[b].position[1] + v_after[1][1],
-                        ];
-
-                        self.particles[a].acceleration = [0.0, 0.0];
-                        self.particles[b].acceleration = [0.0, 0.0];
-
-                        continue;
-                    } else {
-                        let force: f64 = calculate_gravitational_force(
-                            self.particles[a].mass,
-                            self.particles[b].mass,
-                            distance_magnitude,
-                        );
-
-                        total_force[0] += force * f64::cos(theta1);
-                        total_force[1] += force * f64::sin(theta1);
-
-                        total_angle += theta1;
-                    }
-                }
-            }
-
-            self.particles[a].acceleration[0] = (total_force[0] / self.particles[a].mass) * args.dt;
-            self.particles[a].acceleration[1] = (total_force[1] / self.particles[a].mass) * args.dt;
-
-            self.particles[a].update(args.dt);
-        }
+        step_simulation(self.sim, args.dt as f32 * 10.0, 0.5);
     }
 }
 
 fn main() {
+    let min_dist: f32 = 10.;
+    let min_position: Vector3D = Vector3D::from_xy(0., 0.);
+    let max_position: Vector3D = Vector3D::from_xy(900., 900.);
+
+    let config = SimulationConfig3D::new(min_dist, min_position, max_position);
+
+    let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
+    let mut sim: Simulation3D = Simulation3D::empty(PARTICLE_COUNT, config);
+
+    for i in 0..sim.number {
+        // Randomise whether this is a proton or an electron
+        let charge: f32;
+        if rng.gen_range(-0..100) < 50 {
+            charge = -ELECTRON_CHARGE;
+        } else {
+            charge = ELECTRON_CHARGE;
+        }
+
+        sim.set(
+            i,
+            &generate_particle(
+                rng.gen_range(0..max_position.x as usize) as f32,
+                rng.gen_range(0..max_position.y as usize) as f32,
+                rng.gen_range(20.0..50.0 * 1e3),
+                charge,
+            ),
+        );
+    }
+
     let opengl = OpenGL::V3_2;
 
-    let mut window: Window = WindowSettings::new("Rust Particles", [800, 800])
-        .graphics_api(opengl)
-        .exit_on_esc(true)
-        .build()
-        .unwrap();
+    let mut window: Window = WindowSettings::new(
+        "Rust Particles",
+        [max_position.x as u32, max_position.y as u32],
+    )
+    .graphics_api(opengl)
+    .exit_on_esc(true)
+    .build()
+    .unwrap();
 
     let mut app = App {
-        debug_manager: DebugManager::new(DEBUG),
         gl: GlGraphics::new(opengl),
-        particles: Vec::new(),
+        sim: &mut sim,
     };
-
-    app.init(PARTICLE_COUNT);
 
     let mut events = Events::new(EventSettings::new());
 
