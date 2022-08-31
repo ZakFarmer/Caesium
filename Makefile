@@ -1,5 +1,5 @@
 check-clippy:
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy -- -D warnings
 
 build-release:
 	cargo build --release
