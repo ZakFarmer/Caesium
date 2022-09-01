@@ -6,7 +6,7 @@ pub const ELECTRON_MASS: f64 = 9.1093826 * 10e-31;
 
 pub const GRAVITATIONAL_CONSTANT: f64 = 6.67408 * 10e-11;
 
-pub const PARTICLE_COUNT: i32 = 50;
+pub const PARTICLE_COUNT: i32 = 20;
 
 pub const PHYSICS_SCALE: f64 = 1.0 * 10e-11;
 
