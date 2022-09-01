@@ -121,9 +121,9 @@ impl ParticleQuadtree {
     }
 
     pub fn new(
-        position: &Vec<Vector3D>,
-        charge: &Vec<f32>,
-        mass: &Vec<f32>,
+        position: &[Vector3D],
+        charge: &[f32],
+        mass: &[f32],
         bounding_box: BoundingBox,
     ) -> Self {
         let mut root: ParticleQuadtree = Self::empty();
