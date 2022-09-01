@@ -67,12 +67,11 @@ fn main() {
 
     for i in 0..sim.number {
         // Randomise whether this is a proton or an electron
-        let charge: f32;
-        if rng.gen_range(-0..100) < 50 {
-            charge = -ELECTRON_CHARGE;
+        let charge: f32 = if rng.gen_range(-0..100) < 50 {
+            -ELECTRON_CHARGE
         } else {
-            charge = ELECTRON_CHARGE;
-        }
+            ELECTRON_CHARGE
+        };
 
         sim.set(
             i,
