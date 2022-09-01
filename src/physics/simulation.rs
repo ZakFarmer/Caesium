@@ -24,6 +24,7 @@ impl SimulationConfig3D {
 
 #[derive(Debug)]
 pub struct Simulation3D {
+    pub timescale: f32,              // The timescale of the simulation
     pub number: usize,               // The number of particles in the simulation
     pub charge: Vec<f32>,            // Vector of particle charges (in Coulombs)
     pub mass: Vec<f32>,              //  Vector of particle masses (in kg)
@@ -36,6 +37,7 @@ pub struct Simulation3D {
 impl Simulation3D {
     pub fn empty(number: usize, config: SimulationConfig3D) -> Self {
         Self {
+            timescale: 1.0,
             number,
             charge: vec![0.0; number],
             mass: vec![0.0; number],
@@ -57,18 +59,18 @@ impl Simulation3D {
 
     pub fn integrate(&mut self, dt: f32) {
         for i in 0..self.number {
-            self.velocity[i] += self.acceleration[i] * dt;
-            self.position[i] += self.velocity[i] * dt;
+            self.velocity[i] += self.acceleration[i] * dt * self.timescale;
+            self.position[i] += self.velocity[i] * dt * self.timescale;
 
-            if self.position[i].x <= 0.0 {
+            if self.position[i].x <= (self.mass[i] / (0.5 * 1e-26)) {
                 self.velocity[i].x *= -1.0;
-            } else if self.position[i].y <= 0.0 {
+            } else if self.position[i].y <= (self.mass[i] / (0.5 * 1e-26)) {
                 self.velocity[i].y *= -1.0;
             }
 
-            if self.position[i].x >= self.config.max_r.x {
+            if self.position[i].x >= self.config.max_r.x - (self.mass[i] / (0.5 * 1e-26)) {
                 self.velocity[i].x *= -1.0;
-            } else if self.position[i].y >= self.config.max_r.y {
+            } else if self.position[i].y >= self.config.max_r.y - (self.mass[i] / (0.5 * 1e-26)) {
                 self.velocity[i].y *= -1.0;
             }
         }

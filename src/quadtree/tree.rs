@@ -34,6 +34,10 @@ impl ParticleQuadtree {
 
     // Inserts a body into the tree.
     pub fn insert(&mut self, x: f32, y: f32, charge: f32, mass: f32, bounding_box: BoundingBox) {
+        if (x == self.x || y == self.y) {
+            return;
+        }
+
         if charge == 0. || mass == 0. {
             return;
         }
@@ -82,8 +86,9 @@ impl ParticleQuadtree {
                     || parent_bounding_box.max_y == 0.0
                     || parent_bounding_box.min_x == 0.0
                     || parent_bounding_box.min_y == 0.0
+                    || (quadrant == 3 && parent_quadrant == 3)
                 {
-                    break;
+                    return;
                 }
 
                 // Create the cell containing both

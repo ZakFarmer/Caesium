@@ -8,7 +8,9 @@ use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
-use rand::{random, Rng};
+use piston::PressEvent;
+use piston::{Button, Key};
+use rand::Rng;
 use rust_particles::physics::generators::generate_particle;
 use rust_particles::physics::nbody::step_simulation;
 use rust_particles::physics::simulation::{Simulation3D, SimulationConfig3D};
@@ -19,7 +21,7 @@ const ELECTRON_MASS: f32 = 9.1093837 * 10e-31;
 
 const PROTON_MASS: f32 = 1.67262192 * 10e-27;
 
-const PARTICLE_COUNT: usize = 500;
+const PARTICLE_COUNT: usize = 250;
 const PARTICLE_WIDTH_FACTOR: f32 = 0.5 * 1e-30;
 
 pub struct App<'a> {
@@ -120,6 +122,28 @@ fn main() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+        }
+
+        if let Some(args) = e.press_args() {
+            match args {
+                Button::Keyboard(Key::Comma) => {
+                    println!("Timescale: {}", app.sim.timescale);
+                    if app.sim.timescale <= 1.0 {
+                        continue;
+                    }
+
+                    app.sim.timescale -= 1.0;
+                }
+                Button::Keyboard(Key::Period) => {
+                    println!("Timescale: {}", app.sim.timescale);
+                    if app.sim.timescale >= 49.0 {
+                        continue;
+                    }
+
+                    app.sim.timescale += 1.0;
+                }
+                _ => {}
+            }
         }
     }
 }

@@ -49,10 +49,10 @@ pub fn step_simulation(sim: &mut Simulation3D, dt: f32, theta: f32) {
             sim.acceleration[i] += distance * node.mass * inverse_distance_cubed;
 
             // CALCULATE ELECTROSTATIC FORCE
-            let f: f32 = (K0 * node.charge * sim.charge[i]) / distance_sqrd;
+            let force: f32 = (K0 * node.charge * sim.charge[i]) / distance_sqrd;
 
-            sim.acceleration[i].x += (f * f32::cos(angle)) / sim.mass[i];
-            sim.acceleration[i].y += (f * f32::sin(angle)) / sim.mass[i];
+            sim.acceleration[i].x += (force * f32::cos(angle)) / sim.mass[i];
+            sim.acceleration[i].y += (force * f32::sin(angle)) / sim.mass[i];
         }
     }
 
