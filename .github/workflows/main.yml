@@ -1,37 +1,12 @@
-name: CI
-
-on:
-  pull_request:
-  workflow_dispatch:
-  
+on: push
+name: Clippy check
 jobs:
-  tests:
-    name: ${{ matrix.make.name }} (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        rust: [stable]
-        make:
-          - name: Clippy
-            task: "check-clippy"
-        include:
-          - os: ubuntu-latest
-          - os: macos-latest
-        exclude:
-          - os: macos-latest
-            rust: stable
-            make:
-              name: Clippy
-    env:
-      RUST_BACKTRACE: full
-      RUSTV: ${{ matrix.rust }}
+  clippy_check:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2         
-      - name: Install Rust ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v1
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
         with:
-          toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
